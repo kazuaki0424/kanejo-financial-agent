@@ -1,26 +1,114 @@
 @import "tailwindcss";
 
+/* === Kanejo Design Tokens === */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ベースカラー */
+  --color-ink:           #1a1a1a;
+  --color-ink-muted:     #6b6b6b;
+  --color-ink-subtle:    #9b9b9b;
+
+  --color-surface:       #ffffff;
+  --color-surface-alt:   #f7f7f5;
+  --color-surface-hover: #f0f0ec;
+
+  --color-border:        #e5e5e0;
+  --color-border-strong: #d0d0c8;
+
+  /* アクセントカラー */
+  --color-primary:       #2d5a27;
+  --color-primary-light: #e8f0e6;
+  --color-primary-hover: #234a1e;
+
+  /* セマンティックカラー */
+  --color-positive:      #1a7a3a;
+  --color-positive-bg:   #edf7ef;
+  --color-negative:      #c4321c;
+  --color-negative-bg:   #fdf0ed;
+  --color-warning:       #b45309;
+  --color-warning-bg:    #fef9ee;
+  --color-info:          #1e6ca1;
+  --color-info-bg:       #eff6fc;
+
+  /* チャートカラー */
+  --chart-1: #2d5a27;
+  --chart-2: #6b8f68;
+  --chart-3: #c4a35a;
+  --chart-4: #8b6d47;
+  --chart-5: #5a7d8b;
+  --chart-6: #a0887a;
+
+  /* タイポグラフィ */
+  --font-sans:    'Noto Sans JP', system-ui, sans-serif;
+  --font-display: 'Instrument Serif', 'Noto Serif JP', serif;
+  --font-mono:    'JetBrains Mono', monospace;
+
+  /* スペーシング */
+  --space-page: clamp(1rem, 4vw, 3rem);
+
+  /* ボーダー */
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   16px;
+  --radius-full: 9999px;
+
+  /* シャドウ */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
+/* ダークモード */
+.dark {
+  --color-ink:           #e8e8e3;
+  --color-ink-muted:     #a0a09a;
+  --color-ink-subtle:    #6b6b65;
+
+  --color-surface:       #1c1c1a;
+  --color-surface-alt:   #141413;
+  --color-surface-hover: #252523;
+
+  --color-border:        #2e2e2a;
+  --color-border-strong: #3d3d38;
+
+  --color-primary:       #6bb563;
+  --color-primary-light: #1e2d1c;
+  --color-primary-hover: #82c87a;
+}
+
+/* Tailwind テーマ統合 */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--color-surface-alt);
+  --color-foreground: var(--color-ink);
+  --color-surface: var(--color-surface);
+  --color-primary: var(--color-primary);
+  --color-primary-light: var(--color-primary-light);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-ink-muted: var(--color-ink-muted);
+  --color-ink-subtle: var(--color-ink-subtle);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-positive: var(--color-positive);
+  --color-positive-bg: var(--color-positive-bg);
+  --color-negative: var(--color-negative);
+  --color-negative-bg: var(--color-negative-bg);
+  --color-warning: var(--color-warning);
+  --color-warning-bg: var(--color-warning-bg);
+  --color-info: var(--color-info);
+  --color-info-bg: var(--color-info-bg);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ベーススタイル */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-surface-alt);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* 金額・数値の桁揃え */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }

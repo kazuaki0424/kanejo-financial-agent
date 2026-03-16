@@ -1,36 +1,135 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kanejo — パーソナル金融エージェント
 
-## Getting Started
+> すべての人に、自分だけのCFOを。
 
-First, run the development server:
+AI駆動のパーソナル金融エージェントサービス。家計診断・ライフプランシミュレーション・節税最適化・金融サービス比較を一つのプラットフォームで提供します。
+
+## セットアップ
 
 ```bash
+# 依存関係のインストール
+npm install
+
+# 環境変数の設定
+cp .env.local.example .env.local
+# .env.local を編集して以下を設定:
+#   NEXT_PUBLIC_SUPABASE_URL
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY
+#   DATABASE_URL
+#   ANTHROPIC_API_KEY
+
+# DBマイグレーション
+npx drizzle-kit push
+
+# シードデータ投入
+npx tsx scripts/seed-subsidies.ts
+npx tsx scripts/seed-services.ts
+npx tsx scripts/update-tax-rates.ts
+
+# 開発サーバー起動
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## コマンド
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| コマンド | 用途 |
+|---------|------|
+| `npm run dev` | 開発サーバー (localhost:3000) |
+| `npm run build` | 本番ビルド |
+| `npm run test` | ユニットテスト |
+| `npm run test:watch` | テスト（ウォッチモード） |
+| `npm run typecheck` | TypeScript型チェック |
+| `npm run lint` | ESLint |
+| `npm run check` | Biome チェック |
+| `npm run storybook` | Storybook (localhost:6006) |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## アーキテクチャ
 
-## Learn More
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── (auth)/             # 認証ページ (login, register)
+│   ├── (dashboard)/        # メインアプリ (認証必須)
+│   │   ├── page.tsx        # ダッシュボード
+│   │   ├── diagnosis/      # 家計診断
+│   │   ├── simulation/     # ライフプランシミュレーション
+│   │   ├── tax/            # 節税・補助金
+│   │   ├── compare/        # サービス比較
+│   │   ├── agent/          # AIエージェント
+│   │   ├── learn/          # 金融リテラシー
+│   │   ├── alerts/         # アラート・通知
+│   │   └── settings/       # 設定
+│   ├── (marketing)/        # ランディングページ
+│   ├── api/                # APIルート
+│   └── onboarding/         # オンボーディング
+├── components/             # 共有コンポーネント
+│   ├── ui/                 # プリミティブ (Radix UI)
+│   ├── charts/             # チャート (Recharts)
+│   ├── layout/             # レイアウト
+│   └── shared/             # 共有ユーティリティ
+├── lib/                    # ビジネスロジック
+│   ├── ai/                 # AI (Claude API, ツール)
+│   ├── constants/          # 定数データ
+│   ├── db/                 # Drizzle ORM
+│   ├── supabase/           # Supabase クライアント
+│   ├── utils/              # 計算エンジン群
+│   └── validations/        # Zod スキーマ
+├── hooks/                  # カスタムフック
+└── types/                  # 型定義
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 主要機能
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 家計診断
+- 5指標の家計スコア (ティア別ウェイト)
+- 月次収支チャート (12ヶ月, 季節変動)
+- 支出カテゴリ分析 (ドーナツチャート)
+- 資産ポートフォリオ可視化
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### シミュレーション
+- 最大50年のキャッシュフロー予測
+- 7種のライフイベントテンプレート
+- 3シナリオ並列比較
+- パラメータ感度分析 (±1%)
 
-## Deploy on Vercel
+### 節税
+- 所得税・住民税計算 (7段階累進課税)
+- ふるさと納税上限計算 + 返礼品シミュレーション
+- iDeCo/NISA複利シミュレーション
+- 補助金マッチング (12補助金)
+- 確定申告ガイド + 年末調整ウィザード
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### AIエージェント
+- Claude API Tool Use (7ツール)
+- 3段階承認フロー (提案→詳細→承認)
+- タスク進捗管理
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## API
+
+| エンドポイント | メソッド | 用途 |
+|---------------|---------|------|
+| `/api/auth/callback` | GET | OAuth/メール確認 |
+| `/api/diagnosis` | POST | 家計診断AI (SSE) |
+| `/api/simulation` | POST | シミュレーション分析AI (SSE) |
+| `/api/tax-advice` | POST | 税務アドバイスAI (SSE) |
+| `/api/agent/chat` | POST | エージェントチャット (SSE + Tool Use) |
+| `/api/cron/subsidies` | GET | 補助金データ鮮度チェック |
+
+## テスト
+
+```bash
+npm run test        # 474テスト, 26ファイル
+npm run typecheck   # TypeScript 型チェック
+```
+
+## 技術スタック
+
+- **フレームワーク**: Next.js 16 (App Router, Turbopack)
+- **言語**: TypeScript 5 (strict)
+- **スタイリング**: Tailwind CSS 4
+- **UI**: Radix UI (ヘッドレス)
+- **アニメーション**: Framer Motion 12
+- **チャート**: Recharts 3
+- **DB**: Supabase PostgreSQL + Drizzle ORM
+- **AI**: Anthropic Claude API (Tool Use)
+- **テスト**: Vitest 4
