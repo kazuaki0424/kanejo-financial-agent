@@ -1,19 +1,5 @@
-import { type NextRequest, type NextResponse } from 'next/server';
-import { updateSession } from '@/lib/supabase/middleware';
+import { NextResponse } from 'next/server';
 
-export function middleware(request: NextRequest): NextResponse {
-  return updateSession(request);
+export function middleware() {
+  return NextResponse.next();
 }
-
-export const config = {
-  matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon.ico
-     * - public files (svg, png, jpg, etc.)
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
-};
