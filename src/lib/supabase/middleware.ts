@@ -1,8 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db/client';
-import { userProfiles } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
 
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
   let supabaseResponse = NextResponse.next({ request });
@@ -63,26 +60,6 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     const url = request.nextUrl.clone();
     url.pathname = '/';
     return NextResponse.redirect(url);
-  }
-
-  // Check onboarding completion for authenticated users on protected routes
-  if (user && !pathname.startsWith('/onboarding') && !pathname.startsWith('/api/')) {
-    try {
-      const [profile] = await db
-        .select({ onboardingCompleted: userProfiles.onboardingCompleted })
-        .from(userProfiles)
-        .where(eq(userProfiles.userId, user.id))
-        .limit(1);
-
-      // No profile or onboarding not completed → redirect to onboarding
-      if (!profile || !profile.onboardingCompleted) {
-        const url = request.nextUrl.clone();
-        url.pathname = '/onboarding';
-        return NextResponse.redirect(url);
-      }
-    } catch {
-      // DB error — allow through rather than blocking the user
-    }
   }
 
   return supabaseResponse;
