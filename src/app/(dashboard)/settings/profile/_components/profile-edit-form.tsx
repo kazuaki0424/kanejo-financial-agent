@@ -10,8 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { CurrencyInput } from '@/components/shared/currency-input';
 import { PREFECTURES, FINANCIAL_GOAL_OPTIONS } from '@/lib/validations/profile';
 import { cn } from '@/lib/utils/cn';
-import { formatCurrency } from '@/lib/utils/format';
-import { updateProfile, type ProfileData } from '@/app/(dashboard)/settings/_actions/profile';
+import { updateProfile, type ProfileCore } from '@/app/(dashboard)/settings/_actions/profile';
 
 const OCCUPATION_OPTIONS = [
   { value: 'employee', label: '会社員' },
@@ -41,12 +40,11 @@ interface FormState {
 }
 
 interface ProfileEditFormProps {
-  data: ProfileData;
+  profile: ProfileCore;
+  children?: React.ReactNode;
 }
 
-export function ProfileEditForm({ data }: ProfileEditFormProps): React.ReactElement {
-  const { profile } = data;
-
+export function ProfileEditForm({ profile, children }: ProfileEditFormProps): React.ReactElement {
   // Optimistic tier display
   const [optimisticTier, setOptimisticTier] = useOptimistic(profile.tier);
 
@@ -222,60 +220,10 @@ export function ProfileEditForm({ data }: ProfileEditFormProps): React.ReactElem
             error={state.fieldErrors?.annualIncome?.[0]}
           />
         </div>
-
-        {/* 収入サマリー */}
-        {data.incomeSources.length > 0 && (
-          <div className="mt-4 rounded-[var(--radius-md)] bg-[var(--color-surface-alt)] px-4 py-3">
-            <p className="text-xs text-ink-subtle">登録済み収入源</p>
-            {data.incomeSources.map((inc) => (
-              <div key={inc.id} className="mt-1 flex justify-between text-sm">
-                <span className="text-ink-muted">{inc.name ?? inc.category}</span>
-                <span className="tabular-nums text-foreground">¥{formatCurrency(inc.monthlyAmount)}/月</span>
-              </div>
-            ))}
-          </div>
-        )}
       </Card>
 
-      {/* 資産・負債サマリー */}
-      <Card>
-        <CardHeader>
-          <CardTitle>資産・負債</CardTitle>
-        </CardHeader>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs text-ink-subtle">総資産</p>
-            <p className="mt-0.5 font-display text-xl tabular-nums text-foreground">
-              ¥{formatCurrency(data.assets.reduce((s, a) => s + a.amount, 0))}
-            </p>
-            <div className="mt-2 space-y-1">
-              {data.assets.map((a) => (
-                <div key={a.id} className="flex justify-between text-xs">
-                  <span className="text-ink-muted">{a.name ?? a.category}</span>
-                  <span className="tabular-nums text-foreground">¥{formatCurrency(a.amount)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div>
-            <p className="text-xs text-ink-subtle">総負債</p>
-            <p className="mt-0.5 font-display text-xl tabular-nums text-negative">
-              ¥{formatCurrency(data.liabilities.reduce((s, l) => s + l.remainingAmount, 0))}
-            </p>
-            <div className="mt-2 space-y-1">
-              {data.liabilities.map((l) => (
-                <div key={l.id} className="flex justify-between text-xs">
-                  <span className="text-ink-muted">{l.name ?? l.category}</span>
-                  <span className="tabular-nums text-foreground">¥{formatCurrency(l.remainingAmount)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        <p className="mt-3 text-xs text-ink-subtle">
-          資産・負債の詳細編集はオンボーディングから再設定できます。
-        </p>
-      </Card>
+      {/* Deferred financial summaries (Suspense slot) */}
+      {children}
 
       {/* 目標・リスク */}
       <Card>

@@ -21,28 +21,23 @@ import {
 } from '@/types/database';
 
 // ============================================================
-// Fetch profile
+// Types
 // ============================================================
-export interface ProfileData {
-  profile: {
-    birthDate: string;
-    gender: string | null;
-    prefecture: string;
-    maritalStatus: string;
-    dependents: number;
-    occupation: string;
-    annualIncome: number;
-    tier: string;
-    financialGoals: string[] | null;
-    riskTolerance: string | null;
-  };
+export interface ProfileCore {
+  birthDate: string;
+  gender: string | null;
+  prefecture: string;
+  maritalStatus: string;
+  dependents: number;
+  occupation: string;
+  annualIncome: number;
+  tier: string;
+  financialGoals: string[] | null;
+  riskTolerance: string | null;
+}
+
+export interface FinancialSummary {
   incomeSources: Array<{
-    id: string;
-    category: string;
-    name: string | null;
-    monthlyAmount: number;
-  }>;
-  expenses: Array<{
     id: string;
     category: string;
     name: string | null;
@@ -62,32 +57,74 @@ export interface ProfileData {
   }>;
 }
 
-export async function fetchProfile(): Promise<ProfileData | null> {
+/** @deprecated Use fetchProfileCore + fetchFinancialSummary instead */
+export interface ProfileData {
+  profile: ProfileCore;
+  incomeSources: FinancialSummary['incomeSources'];
+  expenses: Array<{
+    id: string;
+    category: string;
+    name: string | null;
+    monthlyAmount: number;
+  }>;
+  assets: FinancialSummary['assets'];
+  liabilities: FinancialSummary['liabilities'];
+}
+
+// ============================================================
+// Fetch profile core (1 DB query — needed for first paint)
+// ============================================================
+export async function fetchProfileCore(): Promise<ProfileCore | null> {
   const user = await getAuthUser();
   if (!user) redirect('/login');
 
   const [profile] = await db
-    .select()
+    .select({
+      birthDate: userProfiles.birthDate,
+      gender: userProfiles.gender,
+      prefecture: userProfiles.prefecture,
+      maritalStatus: userProfiles.maritalStatus,
+      dependents: userProfiles.dependents,
+      occupation: userProfiles.occupation,
+      annualIncome: userProfiles.annualIncome,
+      tier: userProfiles.tier,
+      financialGoals: userProfiles.financialGoals,
+      riskTolerance: userProfiles.riskTolerance,
+    })
     .from(userProfiles)
     .where(eq(userProfiles.userId, user.id))
     .limit(1);
 
   if (!profile) return null;
 
-  const [userIncome, userExpenses, userAssets, userLiabilities] = await Promise.all([
+  return {
+    birthDate: profile.birthDate,
+    gender: profile.gender,
+    prefecture: profile.prefecture,
+    maritalStatus: profile.maritalStatus,
+    dependents: profile.dependents ?? 0,
+    occupation: profile.occupation,
+    annualIncome: profile.annualIncome,
+    tier: profile.tier,
+    financialGoals: profile.financialGoals,
+    riskTolerance: profile.riskTolerance,
+  };
+}
+
+// ============================================================
+// Fetch financial summary (3 parallel queries — deferred)
+// ============================================================
+export async function fetchFinancialSummary(): Promise<FinancialSummary | null> {
+  const user = await getAuthUser();
+  if (!user) redirect('/login');
+
+  const [userIncome, userAssets, userLiabilities] = await Promise.all([
     db.select({
       id: incomeSources.id,
       category: incomeSources.category,
       name: incomeSources.name,
       monthlyAmount: incomeSources.monthlyAmount,
     }).from(incomeSources).where(eq(incomeSources.userId, user.id)),
-
-    db.select({
-      id: expenseRecords.id,
-      category: expenseRecords.category,
-      name: expenseRecords.name,
-      monthlyAmount: expenseRecords.monthlyAmount,
-    }).from(expenseRecords).where(eq(expenseRecords.userId, user.id)),
 
     db.select({
       id: assets.id,
@@ -105,20 +142,7 @@ export async function fetchProfile(): Promise<ProfileData | null> {
   ]);
 
   return {
-    profile: {
-      birthDate: profile.birthDate,
-      gender: profile.gender,
-      prefecture: profile.prefecture,
-      maritalStatus: profile.maritalStatus,
-      dependents: profile.dependents ?? 0,
-      occupation: profile.occupation,
-      annualIncome: profile.annualIncome,
-      tier: profile.tier,
-      financialGoals: profile.financialGoals,
-      riskTolerance: profile.riskTolerance,
-    },
     incomeSources: userIncome,
-    expenses: userExpenses,
     assets: userAssets,
     liabilities: userLiabilities,
   };
