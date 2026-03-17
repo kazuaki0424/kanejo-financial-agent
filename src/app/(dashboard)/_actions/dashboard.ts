@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/supabase/auth';
 import { db } from '@/lib/db/client';
 import { userProfiles, incomeSources, expenseRecords, assets, liabilities } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -20,15 +20,9 @@ export interface DashboardMetrics {
   scoreBreakdown: ScoreBreakdown;
 }
 
-// calculateHouseholdScore is imported from @/lib/utils/household-score
-
 export async function fetchDashboardMetrics(): Promise<DashboardMetrics | null> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const user = await getAuthUser();
+  if (!user) redirect('/login');
 
   const [profile] = await db
     .select({
@@ -70,7 +64,6 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics | null> 
   const liquidAssets = userAssets.filter((a) => a.isLiquid).reduce((s, a) => s + a.amount, 0);
   const assetCategories = new Set(userAssets.map((a) => a.category));
 
-  // 保険関連金額: 保険解約返戻金 + 年間保険料支出
   const insuranceAssets = userAssets
     .filter((a) => a.category === 'insurance_value')
     .reduce((s, a) => s + a.amount, 0);
@@ -120,19 +113,9 @@ export interface MonthlyChartPoint {
   savings: number;
 }
 
-/**
- * 過去12ヶ月の収支データを生成する。
- * 現状は実際の月次トランザクションデータがないため、
- * ユーザーの登録済み月収・月支出をベースに
- * 季節変動をシミュレートして12ヶ月分を返す。
- */
 export async function fetchMonthlyChartData(): Promise<MonthlyChartPoint[]> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const user = await getAuthUser();
+  if (!user) redirect('/login');
 
   const [userIncome, userExpenses] = await Promise.all([
     db.select({ monthlyAmount: incomeSources.monthlyAmount })
@@ -146,8 +129,6 @@ export async function fetchMonthlyChartData(): Promise<MonthlyChartPoint[]> {
   const baseIncome = userIncome.reduce((s, i) => s + i.monthlyAmount, 0);
   const baseExpenses = userExpenses.reduce((s, e) => s + e.monthlyAmount, 0);
 
-  // 季節変動係数（日本の支出パターン）
-  // 1月: 年始、3月: 年度末、7月/12月: ボーナス月、8月: 夏休み
   const EXPENSE_SEASONALITY = [
     1.08, 0.95, 1.05, 0.98, 0.97, 0.96,
     1.02, 1.06, 0.94, 0.97, 0.98, 1.12,
@@ -226,12 +207,8 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 export async function fetchExpenseCategories(): Promise<ExpenseCategoryData[]> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const user = await getAuthUser();
+  if (!user) redirect('/login');
 
   const rows = await db
     .select({
@@ -328,12 +305,8 @@ const LIABILITY_COLORS: Record<string, string> = {
 };
 
 export async function fetchPortfolioData(): Promise<PortfolioData | null> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const user = await getAuthUser();
+  if (!user) redirect('/login');
 
   const [userAssets, userLiabilities] = await Promise.all([
     db.select({

@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/supabase/auth';
 import { db } from '@/lib/db/client';
 import { incomeSources, expenseRecords } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -25,12 +25,8 @@ interface EntryResult {
 }
 
 export async function addManualEntry(formData: FormData): Promise<EntryResult> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const user = await getAuthUser();
+  if (!user) redirect('/login');
 
   const raw = {
     type: formData.get('type') as string,
@@ -88,12 +84,8 @@ export async function addManualEntry(formData: FormData): Promise<EntryResult> {
 // CSV import
 // ============================================================
 export async function importCsv(csvText: string): Promise<ImportResult> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const user = await getAuthUser();
+  if (!user) redirect('/login');
 
   const adapter = new CsvAdapter();
   const records = adapter.parse(csvText);
@@ -160,8 +152,7 @@ export async function importCsv(csvText: string): Promise<ImportResult> {
 // Delete entry
 // ============================================================
 export async function deleteIncomeEntry(entryId: string): Promise<{ error: string | null }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect('/login');
 
   try {
@@ -173,8 +164,7 @@ export async function deleteIncomeEntry(entryId: string): Promise<{ error: strin
 }
 
 export async function deleteExpenseEntry(entryId: string): Promise<{ error: string | null }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect('/login');
 
   try {

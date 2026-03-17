@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/supabase/auth';
 import { db } from '@/lib/db/client';
 import { userProfiles, incomeSources, expenseRecords, assets, liabilities } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -17,12 +17,8 @@ export interface SimulationInitialData {
 }
 
 export async function fetchSimulationData(): Promise<SimulationInitialData | null> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const user = await getAuthUser();
+  if (!user) redirect('/login');
 
   const [profile] = await db
     .select({

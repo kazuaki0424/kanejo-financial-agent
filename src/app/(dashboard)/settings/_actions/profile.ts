@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/supabase/auth';
 import { db } from '@/lib/db/client';
 import {
   userProfiles,
@@ -63,12 +63,8 @@ export interface ProfileData {
 }
 
 export async function fetchProfile(): Promise<ProfileData | null> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const user = await getAuthUser();
+  if (!user) redirect('/login');
 
   const [profile] = await db
     .select()
@@ -155,12 +151,8 @@ function determineTier(annualIncome: number): 'basic' | 'middle' | 'high_end' {
 }
 
 export async function updateProfile(formData: FormData): Promise<UpdateResult> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const user = await getAuthUser();
+  if (!user) redirect('/login');
 
   const raw = {
     birthDate: formData.get('birthDate') as string,

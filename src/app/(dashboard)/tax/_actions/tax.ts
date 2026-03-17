@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/supabase/auth';
 import { db } from '@/lib/db/client';
 import { userProfiles } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -28,12 +28,8 @@ export interface TaxSummaryData {
 }
 
 export async function fetchTaxSummary(): Promise<TaxSummaryData | null> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const user = await getAuthUser();
+  if (!user) redirect('/login');
 
   const [profile] = await db
     .select({

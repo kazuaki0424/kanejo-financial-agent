@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { Card } from '@/components/ui/card';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/supabase/auth';
 import { db } from '@/lib/db/client';
 import { userProfiles } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -12,8 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function LearnPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getAuthUser();
   if (!user) redirect('/login');
 
   const [profile] = await db
