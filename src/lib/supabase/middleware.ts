@@ -1,34 +1,11 @@
-import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
 
-export async function updateSession(request: NextRequest): Promise<NextResponse> {
-  let supabaseResponse = NextResponse.next({ request });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll(): { name: string; value: string }[] {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]): void {
-          for (const { name, value } of cookiesToSet) {
-            request.cookies.set(name, value);
-          }
-          supabaseResponse = NextResponse.next({ request });
-          for (const { name, value, options } of cookiesToSet) {
-            supabaseResponse.cookies.set(name, value, options);
-          }
-        },
-      },
-    },
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+/**
+ * Lightweight auth routing based on cookie presence only.
+ * No external API calls (no getUser/getSession) to avoid Edge timeouts.
+ * Actual session validation happens server-side in layouts/actions.
+ */
+export function updateSession(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
 
   // Public paths that don't require auth
@@ -40,15 +17,20 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon');
 
+  // Check for Supabase auth cookie presence (no API call)
+  const hasAuthCookie = request.cookies.getAll().some(
+    (cookie) => cookie.name.startsWith('sb-') && cookie.name.endsWith('-auth-token'),
+  );
+
   // Redirect unauthenticated root access to landing page
-  if (!user && pathname === '/') {
+  if (!hasAuthCookie && pathname === '/') {
     const url = request.nextUrl.clone();
     url.pathname = '/lp';
     return NextResponse.redirect(url);
   }
 
   // Redirect unauthenticated users to login
-  if (!user && !isPublicPath) {
+  if (!hasAuthCookie && !isPublicPath) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('redirect', pathname);
@@ -56,11 +38,11 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   }
 
   // Redirect authenticated users away from auth pages
-  if (user && (pathname === '/login' || pathname === '/register')) {
+  if (hasAuthCookie && (pathname === '/login' || pathname === '/register')) {
     const url = request.nextUrl.clone();
     url.pathname = '/';
     return NextResponse.redirect(url);
   }
 
-  return supabaseResponse;
+  return NextResponse.next({ request });
 }
