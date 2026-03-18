@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import { signOut } from '@/app/(auth)/_actions/auth';
 import {
   DropdownMenu,
@@ -16,6 +17,7 @@ interface UserMenuProps {
 
 export function UserMenu({ email }: UserMenuProps): React.ReactElement {
   const initial = email ? email[0].toUpperCase() : 'K';
+  const logoutFormRef = useRef<HTMLFormElement>(null);
 
   return (
     <DropdownMenu>
@@ -42,20 +44,11 @@ export function UserMenu({ email }: UserMenuProps): React.ReactElement {
           設定
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          destructive
-          onSelect={() => {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/api/auth/signout';
-            document.body.appendChild(form);
-            // Use server action directly
-            signOut();
-          }}
-        >
+        <DropdownMenuItem destructive onSelect={() => { logoutFormRef.current?.requestSubmit(); }}>
           ログアウト
         </DropdownMenuItem>
       </DropdownMenuContent>
+      <form ref={logoutFormRef} action={signOut} className="hidden" />
     </DropdownMenu>
   );
 }
