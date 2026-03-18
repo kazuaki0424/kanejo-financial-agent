@@ -16,21 +16,36 @@ export const metadata: Metadata = {
   title: 'サービス比較 — Kanejo',
 };
 
-export default async function ComparePage() {
+export default async function ComparePage(): Promise<React.ReactElement> {
   const user = await getAuthUser();
   if (!user) redirect('/login');
 
-  const [profile] = await db
-    .select({
+  // Run all 4 queries in parallel instead of 3 sequential rounds
+  const [[profile], expenses, userAssets, userLiabilities] = await Promise.all([
+    db.select({
       birthDate: userProfiles.birthDate,
       annualIncome: userProfiles.annualIncome,
       maritalStatus: userProfiles.maritalStatus,
       dependents: userProfiles.dependents,
       childrenAges: userProfiles.childrenAges,
     })
-    .from(userProfiles)
-    .where(eq(userProfiles.userId, user.id))
-    .limit(1);
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, user.id))
+      .limit(1),
+    db.select({
+      monthlyAmount: expenseRecords.monthlyAmount,
+      category: expenseRecords.category,
+      name: expenseRecords.name,
+    })
+      .from(expenseRecords)
+      .where(eq(expenseRecords.userId, user.id)),
+    db.select({ amount: assets.amount })
+      .from(assets)
+      .where(eq(assets.userId, user.id)),
+    db.select({ remainingAmount: liabilities.remainingAmount })
+      .from(liabilities)
+      .where(eq(liabilities.userId, user.id)),
+  ]);
 
   if (!profile) {
     return (
@@ -42,15 +57,6 @@ export default async function ComparePage() {
       </div>
     );
   }
-
-  const expenses = await db
-    .select({
-      monthlyAmount: expenseRecords.monthlyAmount,
-      category: expenseRecords.category,
-      name: expenseRecords.name,
-    })
-    .from(expenseRecords)
-    .where(eq(expenseRecords.userId, user.id));
 
   const monthlySpending = expenses.reduce((s, e) => s + e.monthlyAmount, 0);
 
@@ -69,11 +75,6 @@ export default async function ComparePage() {
   const birth = new Date(profile.birthDate);
   const age = new Date().getFullYear() - birth.getFullYear();
 
-  // Fetch assets and liabilities for insurance analysis
-  const [userAssets, userLiabilities] = await Promise.all([
-    db.select({ amount: assets.amount }).from(assets).where(eq(assets.userId, user.id)),
-    db.select({ remainingAmount: liabilities.remainingAmount }).from(liabilities).where(eq(liabilities.userId, user.id)),
-  ]);
   const totalAssets = userAssets.reduce((s, a) => s + a.amount, 0);
   const totalLiabilities = userLiabilities.reduce((s, l) => s + l.remainingAmount, 0);
 
@@ -93,7 +94,7 @@ export default async function ComparePage() {
     monthlyExpenses: monthlySpending,
     totalAssets,
     totalLiabilities,
-    currentInsurance: [], // No current insurance data yet
+    currentInsurance: [],
   };
 
   return (

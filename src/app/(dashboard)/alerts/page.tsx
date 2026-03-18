@@ -14,11 +14,18 @@ export const metadata: Metadata = {
   title: 'アラート・通知 — Kanejo',
 };
 
-export default async function AlertsPage() {
+export default async function AlertsPage(): Promise<React.ReactElement> {
   const user = await getAuthUser();
   if (!user) redirect('/login');
 
-  const metrics = await fetchDashboardMetrics();
+  // Run all data fetches in parallel instead of sequentially
+  const [metrics, [profile], expenses] = await Promise.all([
+    fetchDashboardMetrics(),
+    db.select({ birthDate: userProfiles.birthDate, maritalStatus: userProfiles.maritalStatus, dependents: userProfiles.dependents })
+      .from(userProfiles).where(eq(userProfiles.userId, user.id)).limit(1),
+    db.select({ category: expenseRecords.category, name: expenseRecords.name, monthlyAmount: expenseRecords.monthlyAmount, isFixed: expenseRecords.isFixed })
+      .from(expenseRecords).where(eq(expenseRecords.userId, user.id)),
+  ]);
 
   if (!metrics) {
     return (
@@ -28,14 +35,6 @@ export default async function AlertsPage() {
       </div>
     );
   }
-
-  const [profile] = await db
-    .select({ birthDate: userProfiles.birthDate, maritalStatus: userProfiles.maritalStatus, dependents: userProfiles.dependents })
-    .from(userProfiles).where(eq(userProfiles.userId, user.id)).limit(1);
-
-  const expenses = await db
-    .select({ category: expenseRecords.category, name: expenseRecords.name, monthlyAmount: expenseRecords.monthlyAmount, isFixed: expenseRecords.isFixed })
-    .from(expenseRecords).where(eq(expenseRecords.userId, user.id));
 
   const age = profile ? new Date().getFullYear() - new Date(profile.birthDate).getFullYear() : 35;
 

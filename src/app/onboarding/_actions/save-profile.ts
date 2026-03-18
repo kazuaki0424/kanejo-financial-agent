@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { getAuthUser } from '@/lib/supabase/auth';
 import { db } from '@/lib/db/client';
 import { userProfiles, incomeSources, expenseRecords, assets, liabilities } from '@/lib/db/schema';
 import { step1Schema, step2Schema, step3Schema, step4Schema, step5Schema } from '@/lib/validations/profile';
@@ -27,12 +27,8 @@ function determineTier(annualIncome: number): 'basic' | 'middle' | 'high_end' {
 }
 
 export async function saveStep1(formData: FormData): Promise<ActionResult> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const user = await getAuthUser();
+  if (!user) redirect('/login');
 
   const raw = {
     birthDate: formData.get('birthDate') as string,
@@ -97,12 +93,8 @@ export async function saveStep1(formData: FormData): Promise<ActionResult> {
 }
 
 export async function saveStep2(formData: FormData): Promise<ActionResult> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const user = await getAuthUser();
+  if (!user) redirect('/login');
 
   const raw = {
     occupation: formData.get('occupation') as string,
@@ -168,12 +160,8 @@ export async function saveStep2(formData: FormData): Promise<ActionResult> {
 }
 
 export async function saveStep3(formData: FormData): Promise<ActionResult> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const user = await getAuthUser();
+  if (!user) redirect('/login');
 
   const raw = {
     housing: formData.get('housing') as string,
@@ -254,12 +242,8 @@ const LIABILITY_MAP: Record<string, { category: string; name: string }> = {
 };
 
 export async function saveStep4(formData: FormData): Promise<ActionResult> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const user = await getAuthUser();
+  if (!user) redirect('/login');
 
   const raw: Record<string, string> = {};
   for (const key of Object.keys({ ...ASSET_MAP, ...LIABILITY_MAP })) {
@@ -319,12 +303,8 @@ export async function saveStep4(formData: FormData): Promise<ActionResult> {
 }
 
 export async function saveStep5(formData: FormData): Promise<CompletionResult> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
+  const user = await getAuthUser();
+  if (!user) redirect('/login');
 
   const raw = {
     financialGoals: formData.get('financialGoals') as string,
@@ -354,25 +334,15 @@ export async function saveStep5(formData: FormData): Promise<CompletionResult> {
       })
       .where(eq(userProfiles.userId, user.id));
 
-    // Fetch summary for completion screen
-    const [profile] = await db
-      .select({
-        tier: userProfiles.tier,
-        annualIncome: userProfiles.annualIncome,
-      })
-      .from(userProfiles)
-      .where(eq(userProfiles.userId, user.id))
-      .limit(1);
-
-    const userAssets = await db
-      .select({ amount: assets.amount })
-      .from(assets)
-      .where(eq(assets.userId, user.id));
-
-    const userLiabilities = await db
-      .select({ remainingAmount: liabilities.remainingAmount })
-      .from(liabilities)
-      .where(eq(liabilities.userId, user.id));
+    // Fetch summary for completion screen (parallel)
+    const [[profile], userAssets, userLiabilities] = await Promise.all([
+      db.select({ tier: userProfiles.tier, annualIncome: userProfiles.annualIncome })
+        .from(userProfiles).where(eq(userProfiles.userId, user.id)).limit(1),
+      db.select({ amount: assets.amount })
+        .from(assets).where(eq(assets.userId, user.id)),
+      db.select({ remainingAmount: liabilities.remainingAmount })
+        .from(liabilities).where(eq(liabilities.userId, user.id)),
+    ]);
 
     const totalAssets = userAssets.reduce((sum, a) => sum + a.amount, 0);
     const totalLiabilities = userLiabilities.reduce((sum, l) => sum + l.remainingAmount, 0);
