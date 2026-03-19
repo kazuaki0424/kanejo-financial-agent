@@ -7,8 +7,10 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
   },
 
-  // Allow dev origins for remote access
-  allowedDevOrigins: ['http://187.127.96.81:3000'],
+  // Allow dev origins for remote access (dev only)
+  ...(process.env.NODE_ENV === 'development' && {
+    allowedDevOrigins: ['http://187.127.96.81:3000'],
+  }),
 
   // Headers for caching static assets
   async headers() {
