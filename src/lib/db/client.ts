@@ -47,7 +47,7 @@ const client = globalForDb.pgClient ?? postgres(connectionString, {
   // Development: max:10 for concurrent dev requests
   max: process.env.NODE_ENV === 'production' ? 1 : 10,
   idle_timeout: 20,
-  connect_timeout: 10,
+  connect_timeout: 5,
 });
 
 // Cache on globalThis — persists across warm invocations in all environments

@@ -6,6 +6,7 @@ import { db } from '@/lib/db/client';
 import { userProfiles, incomeSources, expenseRecords, assets, liabilities } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { calculateHouseholdScore, type ScoreBreakdown } from '@/lib/utils/household-score';
+import { logger } from '@/lib/logger';
 
 export interface DashboardMetrics {
   monthlyIncome: number;
@@ -358,5 +359,155 @@ export async function fetchPortfolioData(): Promise<PortfolioData | null> {
     totalLiabilities,
     netWorth: totalAssets - totalLiabilities,
     liquidRatio: totalAssets > 0 ? Math.round((liquidTotal / totalAssets) * 100) : 0,
+  };
+}
+
+// ============================================================
+// /diagnosis 専用: 全データを1関数・5並列クエリで取得
+// ============================================================
+export interface DiagnosisData {
+  metrics: DashboardMetrics;
+  categories: ExpenseCategoryData[];
+  portfolio: PortfolioData;
+}
+
+export async function fetchDiagnosisData(): Promise<DiagnosisData | null> {
+  const t0 = performance.now();
+
+  const user = await getAuthUser();
+  if (!user) redirect('/login');
+  logger.info('[diagnosis] getAuthUser', { ms: Math.round(performance.now() - t0) });
+
+  const t1 = performance.now();
+  // 5クエリを完全並列化（従来: profile直列 → 4クエリ並列、expenses/assets/liabilities重複取得）
+  const [profiles, incomeRows, expenseRows, assetRows, liabilityRows] = await Promise.all([
+    db.select({ annualIncome: userProfiles.annualIncome, tier: userProfiles.tier })
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, user.id))
+      .limit(1),
+
+    db.select({ monthlyAmount: incomeSources.monthlyAmount })
+      .from(incomeSources)
+      .where(eq(incomeSources.userId, user.id)),
+
+    db.select({
+      monthlyAmount: expenseRecords.monthlyAmount,
+      category: expenseRecords.category,
+      name: expenseRecords.name,
+      isFixed: expenseRecords.isFixed,
+    })
+      .from(expenseRecords)
+      .where(eq(expenseRecords.userId, user.id)),
+
+    db.select({
+      amount: assets.amount,
+      category: assets.category,
+      isLiquid: assets.isLiquid,
+      name: assets.name,
+    })
+      .from(assets)
+      .where(eq(assets.userId, user.id)),
+
+    db.select({
+      remainingAmount: liabilities.remainingAmount,
+      category: liabilities.category,
+      name: liabilities.name,
+    })
+      .from(liabilities)
+      .where(eq(liabilities.userId, user.id)),
+  ]);
+  logger.info('[diagnosis] db queries (5 parallel)', { ms: Math.round(performance.now() - t1) });
+
+  const profile = profiles[0];
+  if (!profile) return null;
+
+  const t2 = performance.now();
+
+  // --- metrics ---
+  const monthlyIncome = incomeRows.reduce((s, i) => s + i.monthlyAmount, 0);
+  const monthlyExpenses = expenseRows.reduce((s, e) => s + e.monthlyAmount, 0);
+  const totalAssets = assetRows.reduce((s, a) => s + a.amount, 0);
+  const totalLiabilities = liabilityRows.reduce((s, l) => s + l.remainingAmount, 0);
+  const liquidAssets = assetRows.filter((a) => a.isLiquid).reduce((s, a) => s + a.amount, 0);
+  const assetCategories = new Set(assetRows.map((a) => a.category));
+  const insuranceCoverage =
+    assetRows.filter((a) => a.category === 'insurance_value').reduce((s, a) => s + a.amount, 0) +
+    expenseRows.filter((e) => e.category === 'insurance').reduce((s, e) => s + e.monthlyAmount * 12, 0);
+  const savingsRate =
+    monthlyIncome > 0 ? Math.round(((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100) : 0;
+  const tier = profile.tier as 'basic' | 'middle' | 'high_end';
+  const { score, grade, breakdown } = calculateHouseholdScore({
+    monthlyIncome,
+    monthlyExpenses,
+    annualIncome: profile.annualIncome,
+    totalLiabilities,
+    liquidAssets,
+    assetCategoryCount: assetCategories.size,
+    insuranceCoverage,
+    tier,
+  });
+
+  // --- categories ---
+  const expenseTotal = monthlyExpenses;
+  const categories: ExpenseCategoryData[] =
+    expenseTotal === 0
+      ? []
+      : expenseRows
+          .map((r) => ({
+            category: r.category,
+            label: CATEGORY_LABELS[r.category] ?? r.name ?? r.category,
+            amount: r.monthlyAmount,
+            percentage: Math.round((r.monthlyAmount / expenseTotal) * 100),
+            isFixed: r.isFixed ?? false,
+            color: CATEGORY_COLORS[r.category] ?? 'var(--color-ink-subtle)',
+          }))
+          .sort((a, b) => b.amount - a.amount);
+
+  // --- portfolio ---
+  const liquidTotal = liquidAssets;
+  const assetItems: AssetPortfolioItem[] = assetRows
+    .map((a) => ({
+      category: a.category,
+      label: ASSET_LABELS[a.category] ?? a.name ?? a.category,
+      amount: a.amount,
+      percentage: totalAssets > 0 ? Math.round((a.amount / totalAssets) * 100) : 0,
+      color: ASSET_COLORS[a.category] ?? 'var(--color-ink-subtle)',
+      isLiquid: a.isLiquid ?? true,
+    }))
+    .sort((a, b) => b.amount - a.amount);
+  const liabilityItems: LiabilityItem[] = liabilityRows
+    .map((l) => ({
+      category: l.category,
+      label: LIABILITY_LABELS[l.category] ?? l.name ?? l.category,
+      remainingAmount: l.remainingAmount,
+      color: LIABILITY_COLORS[l.category] ?? 'var(--color-ink-subtle)',
+    }))
+    .sort((a, b) => b.remainingAmount - a.remainingAmount);
+
+  logger.info('[diagnosis] compute', { ms: Math.round(performance.now() - t2) });
+  logger.info('[diagnosis] total', { ms: Math.round(performance.now() - t0) });
+
+  return {
+    metrics: {
+      monthlyIncome,
+      monthlyExpenses,
+      savingsRate,
+      householdScore: score,
+      householdGrade: grade,
+      totalAssets,
+      totalLiabilities,
+      netWorth: totalAssets - totalLiabilities,
+      tier: profile.tier,
+      scoreBreakdown: breakdown,
+    },
+    categories,
+    portfolio: {
+      assets: assetItems,
+      liabilities: liabilityItems,
+      totalAssets,
+      totalLiabilities,
+      netWorth: totalAssets - totalLiabilities,
+      liquidRatio: totalAssets > 0 ? Math.round((liquidTotal / totalAssets) * 100) : 0,
+    },
   };
 }

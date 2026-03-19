@@ -3,6 +3,8 @@ import { Card } from '@/components/ui/card';
 import { fetchSimulationData } from './_actions/simulation';
 import { SimulationRunner } from './_components/simulation-runner';
 
+export const maxDuration = 30;
+
 export const metadata: Metadata = {
   title: 'ライフプランシミュレーション — Kanejo',
 };

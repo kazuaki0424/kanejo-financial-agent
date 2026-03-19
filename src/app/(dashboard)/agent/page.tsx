@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { AgentChat } from './_components/agent-chat';
 
+export const maxDuration = 30;
+
 export const metadata: Metadata = {
   title: 'エージェント — Kanejo',
 };

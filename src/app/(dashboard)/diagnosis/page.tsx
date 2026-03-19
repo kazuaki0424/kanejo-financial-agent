@@ -1,11 +1,7 @@
 import type { Metadata } from 'next';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  fetchDashboardMetrics,
-  fetchExpenseCategories,
-  fetchPortfolioData,
-} from '@/app/(dashboard)/_actions/dashboard';
+import { fetchDiagnosisData } from '@/app/(dashboard)/_actions/dashboard';
 import { SpendingCategorySection } from '@/app/(dashboard)/_components/spending-category-section';
 import { AssetPortfolioSection } from '@/app/(dashboard)/_components/asset-portfolio-section';
 import { ScoreGauge } from './_components/score-gauge';
@@ -19,6 +15,8 @@ export const metadata: Metadata = {
   title: '家計診断 — Kanejo',
 };
 
+export const maxDuration = 30;
+
 const TIER_LABELS: Record<string, string> = {
   basic: 'ベーシック',
   middle: 'ミドル',
@@ -26,13 +24,9 @@ const TIER_LABELS: Record<string, string> = {
 };
 
 export default async function DiagnosisPage() {
-  const [metrics, categories, portfolio] = await Promise.all([
-    fetchDashboardMetrics(),
-    fetchExpenseCategories(),
-    fetchPortfolioData(),
-  ]);
+  const data = await fetchDiagnosisData();
 
-  if (!metrics) {
+  if (!data) {
     return (
       <div className="space-y-6">
         <h1 className="font-display text-3xl text-foreground">家計診断</h1>
@@ -44,6 +38,8 @@ export default async function DiagnosisPage() {
       </div>
     );
   }
+
+  const { metrics, categories, portfolio } = data;
 
   return (
     <div className="space-y-6">
@@ -97,14 +93,7 @@ export default async function DiagnosisPage() {
             <p className="mt-8 text-center text-sm text-ink-subtle">支出データがありません</p>
           </Card>
         )}
-        {portfolio ? (
-          <AssetPortfolioSection portfolio={portfolio} />
-        ) : (
-          <Card className="min-h-[200px]">
-            <p className="text-[13px] text-ink-muted">資産ポートフォリオ</p>
-            <p className="mt-8 text-center text-sm text-ink-subtle">資産データがありません</p>
-          </Card>
-        )}
+        <AssetPortfolioSection portfolio={portfolio} />
       </div>
     </div>
   );
