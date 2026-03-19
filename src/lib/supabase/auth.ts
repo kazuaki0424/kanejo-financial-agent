@@ -8,11 +8,13 @@ interface AuthUser {
 
 /**
  * Request-scoped cached auth check.
+ * getSession() reads the JWT from the cookie locally — no network call to Supabase Auth.
  * React.cache deduplicates across layout + page + actions within a single RSC render.
- * Returns null if not authenticated (never redirects — caller decides).
+ * DB-level security is enforced by Supabase RLS on every query.
  */
 export const getAuthUser = cache(async (): Promise<AuthUser | null> => {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  return user ? { id: user.id, email: user.email ?? undefined } : null;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return null;
+  return { id: session.user.id, email: session.user.email ?? undefined };
 });

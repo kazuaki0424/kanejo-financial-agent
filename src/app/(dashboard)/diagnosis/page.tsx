@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +11,7 @@ import { ImprovementList } from './_components/improvement-list';
 import { DataEntrySection } from './_components/data-entry-section';
 import { AiInsightCard } from '@/app/(dashboard)/_components/ai-insight-card';
 import { formatCurrency } from '@/lib/utils/format';
+import { DiagnosisContentSkeleton } from '@/components/shared/loading-skeleton';
 
 export const metadata: Metadata = {
   title: '家計診断 — Kanejo',
@@ -23,29 +25,39 @@ const TIER_LABELS: Record<string, string> = {
   high_end: 'ハイエンド',
 };
 
-export default async function DiagnosisPage() {
+// ヘッダーは即座に表示し、データ取得はSuspense内で行う
+export default function DiagnosisPage(): React.ReactElement {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-baseline justify-between">
+        <h1 className="font-display text-3xl text-foreground">家計診断</h1>
+      </div>
+      <Suspense fallback={<DiagnosisContentSkeleton />}>
+        <DiagnosisContent />
+      </Suspense>
+    </div>
+  );
+}
+
+async function DiagnosisContent(): Promise<React.ReactElement> {
   const data = await fetchDiagnosisData();
 
   if (!data) {
     return (
-      <div className="space-y-6">
-        <h1 className="font-display text-3xl text-foreground">家計診断</h1>
-        <Card>
-          <p className="text-sm text-ink-muted">
-            プロファイルが見つかりません。オンボーディングを完了してください。
-          </p>
-        </Card>
-      </div>
+      <Card>
+        <p className="text-sm text-ink-muted">
+          プロファイルが見つかりません。オンボーディングを完了してください。
+        </p>
+      </Card>
     );
   }
 
   const { metrics, categories, portfolio } = data;
 
   return (
-    <div className="space-y-6">
-      {/* ヘッダー */}
-      <div className="flex items-baseline justify-between">
-        <h1 className="font-display text-3xl text-foreground">家計診断</h1>
+    <>
+      {/* ティアバッジ（データ取得後に表示） */}
+      <div className="-mt-4 flex justify-end">
         <Badge variant="primary">{TIER_LABELS[metrics.tier] ?? metrics.tier}</Badge>
       </div>
 
@@ -95,7 +107,7 @@ export default async function DiagnosisPage() {
         )}
         <AssetPortfolioSection portfolio={portfolio} />
       </div>
-    </div>
+    </>
   );
 }
 

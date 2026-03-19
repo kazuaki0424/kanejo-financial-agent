@@ -1,7 +1,8 @@
 'use client';
 
-import { useRouter, usePathname } from 'next/navigation';
-import { useTransition, useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSidebar } from '@/hooks/use-sidebar';
 import { NAV_ITEMS } from '@/lib/constants/navigation';
@@ -15,17 +16,12 @@ const SIDEBAR_COLLAPSED_WIDTH = 72;
 export function Sidebar(): React.ReactElement {
   const { collapsed, setCollapsed, mobileOpen, setMobileOpen } = useSidebar();
   const pathname = usePathname();
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
 
-  function navigate(href: string): void {
-    if (href === pathname) return;
-    setPendingHref(href);
-    startTransition(() => {
-      router.push(href);
-    });
-  }
+  // ナビゲーション完了時にスピナーをクリア
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
 
   return (
     <>
@@ -87,14 +83,14 @@ export function Sidebar(): React.ReactElement {
           <ul className="flex flex-col gap-1">
             {NAV_ITEMS.map((item) => {
               const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-              const isLoading = isPending && pendingHref === item.href;
+              const isLoading = pendingHref === item.href;
               return (
                 <li key={item.href}>
-                  <button
-                    type="button"
-                    onClick={() => navigate(item.href)}
+                  <Link
+                    href={item.href}
+                    onClick={() => { if (!isActive) setPendingHref(item.href); }}
                     className={cn(
-                      'flex h-10 w-full items-center gap-3 rounded-[var(--radius-md)] px-3 text-sm transition-colors',
+                      'flex h-10 items-center gap-3 rounded-[var(--radius-md)] px-3 text-sm transition-colors',
                       isActive
                         ? 'bg-primary-light text-primary font-medium'
                         : 'text-ink-muted hover:bg-[var(--color-surface-hover)] hover:text-foreground',
@@ -121,7 +117,7 @@ export function Sidebar(): React.ReactElement {
                         </motion.span>
                       )}
                     </AnimatePresence>
-                  </button>
+                  </Link>
                 </li>
               );
             })}
@@ -130,23 +126,23 @@ export function Sidebar(): React.ReactElement {
 
         {/* フッター: 設定 + ティア */}
         <div className="border-t border-border px-3 py-3">
-          <button
-            type="button"
-            onClick={() => navigate('/settings')}
+          <Link
+            href="/settings"
+            onClick={() => { if (pathname !== '/settings') setPendingHref('/settings'); }}
             className={cn(
-              'flex h-10 w-full items-center gap-3 rounded-[var(--radius-md)] px-3 text-sm text-ink-muted transition-colors',
+              'flex h-10 items-center gap-3 rounded-[var(--radius-md)] px-3 text-sm text-ink-muted transition-colors',
               'hover:bg-[var(--color-surface-hover)] hover:text-foreground',
-              isPending && pendingHref === '/settings' && 'opacity-70',
+              pendingHref === '/settings' && 'opacity-70',
               collapsed && 'justify-center px-0',
             )}
           >
-            {isPending && pendingHref === '/settings' ? (
+            {pendingHref === '/settings' ? (
               <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />
             ) : (
               <NavIcon name="settings" className="h-5 w-5 shrink-0" />
             )}
             {!collapsed && <span>設定</span>}
-          </button>
+          </Link>
           {!collapsed && (
             <div className="mt-2 px-3">
               <Badge variant="primary">ベーシック</Badge>
@@ -180,14 +176,14 @@ export function Sidebar(): React.ReactElement {
               <ul className="flex flex-col gap-1">
                 {NAV_ITEMS.map((item) => {
                   const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-                  const isLoading = isPending && pendingHref === item.href;
+                  const isLoading = pendingHref === item.href;
                   return (
                     <li key={item.href}>
-                      <button
-                        type="button"
-                        onClick={() => { setMobileOpen(false); navigate(item.href); }}
+                      <Link
+                        href={item.href}
+                        onClick={() => { setMobileOpen(false); if (!isActive) setPendingHref(item.href); }}
                         className={cn(
-                          'flex h-10 w-full items-center gap-3 rounded-[var(--radius-md)] px-3 text-sm transition-colors',
+                          'flex h-10 items-center gap-3 rounded-[var(--radius-md)] px-3 text-sm transition-colors',
                           isActive
                             ? 'bg-primary-light text-primary font-medium'
                             : 'text-ink-muted hover:bg-[var(--color-surface-hover)] hover:text-foreground',
@@ -201,25 +197,25 @@ export function Sidebar(): React.ReactElement {
                           <NavIcon name={item.icon} className="h-5 w-5 shrink-0" />
                         )}
                         <span>{item.label}</span>
-                      </button>
+                      </Link>
                     </li>
                   );
                 })}
               </ul>
             </nav>
             <div className="border-t border-border px-3 py-3">
-              <button
-                type="button"
-                onClick={() => { setMobileOpen(false); navigate('/settings'); }}
-                className="flex h-10 w-full items-center gap-3 rounded-[var(--radius-md)] px-3 text-sm text-ink-muted hover:text-foreground"
+              <Link
+                href="/settings"
+                onClick={() => { setMobileOpen(false); if (pathname !== '/settings') setPendingHref('/settings'); }}
+                className="flex h-10 items-center gap-3 rounded-[var(--radius-md)] px-3 text-sm text-ink-muted hover:text-foreground"
               >
-                {isPending && pendingHref === '/settings' ? (
+                {pendingHref === '/settings' ? (
                   <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />
                 ) : (
                   <NavIcon name="settings" className="h-5 w-5 shrink-0" />
                 )}
                 <span>設定</span>
-              </button>
+              </Link>
             </div>
           </motion.aside>
         )}
