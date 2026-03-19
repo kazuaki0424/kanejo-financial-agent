@@ -38,18 +38,19 @@ function validateConnectionString(raw: string | undefined): string {
 
 const connectionString = validateConnectionString(process.env.DATABASE_URL);
 
-// Connection pool: reuse across requests in serverless environment
+// Reuse connection across warm invocations (works in both dev and serverless warm starts)
 const globalForDb = globalThis as unknown as { pgClient: ReturnType<typeof postgres> | undefined };
 
 const client = globalForDb.pgClient ?? postgres(connectionString, {
   prepare: false,
-  max: 10,
+  // Serverless: max:1 (connections are not shared across invocations)
+  // Development: max:10 for concurrent dev requests
+  max: process.env.NODE_ENV === 'production' ? 1 : 10,
   idle_timeout: 20,
   connect_timeout: 10,
 });
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForDb.pgClient = client;
-}
+// Cache on globalThis — persists across warm invocations in all environments
+globalForDb.pgClient = client;
 
 export const db = drizzle(client, { schema });
