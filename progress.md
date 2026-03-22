@@ -2,7 +2,7 @@
 
 ## 概要
 - 開発開始: 2026-03-16
-- 現在: Day 60 / 60 完了 → 本番デプロイ済み (2026-03-16) 🎉
+- 現在: Day 60 / 60 完了 🎉
 - テスト: 474件 (26ファイル, 全パス)
 - ビルド: 24ルート, 0エラー
 - ルート: 24ページ
@@ -141,37 +141,6 @@
 | 58 | アクセシビリティ (スキップリンク, ARIA, 静的解析10テスト) | ✅ |
 | 59 | E2Eテスト + ドキュメント (10フロー統合テスト, README) | ✅ |
 | 60 | デプロイ + モニタリング (Vercel設定, 最終ビルド, ドキュメント) | ✅ |
-
----
-
-## Post-Release: 本番対応 (2026-03-17〜19)
-
-### 背景
-初回デプロイ直後から `MIDDLEWARE_INVOCATION_TIMEOUT` による504エラーが多発。段階的に修正。
-
-| 日付 | 対応 | 状態 |
-|------|------|------|
-| 2026-03-17 | middleware緊急修正 (Edge Runtimeでの外部API呼び出し全廃) | ✅ |
-| 2026-03-17 | DATABASE_URL起動時バリデーション + 構造化ロガー追加 | ✅ |
-| 2026-03-17 | dashboardレイアウトのDB query削除、`getAuthUser()` (React.cache) 導入 | ✅ |
-| 2026-03-17 | 設定ページ: `fetchProfileCore` + Suspenseストリーミング分割 | ✅ |
-| 2026-03-17 | ログアウトバグ修正 (form submit経由のサーバーアクション呼び出しに変更) | ✅ |
-| 2026-03-18 | アラート・比較ページのウォーターフォール解消 (`Promise.all` 並列化) | ✅ |
-| 2026-03-18 | オンボーディングsaveAction全ステップを `getAuthUser` に移行 | ✅ |
-| 2026-03-19 | `vercel.json` にリージョン `nrt1` (東京) 固定、DB `max:1` + globalThis キャッシュ | ✅ |
-| 2026-03-19 | `maxDuration` 設定 (AIルート60s、ページ30s、connect_timeout 5s) | ✅ |
-| 2026-03-19 | `middleware.ts` → `proxy.ts` (Next.js 16規約)、matcherを `/dashboard/*` 等に絞込み | ✅ |
-| 2026-03-19 | サイドバー: `<Link>` + `useTransition` でprefetch復活・即時スピナー表示 | ✅ |
-| 2026-03-19 | `getUser()` → `getSession()` (cookie読み取りのみ、~100-300ms削減) | ✅ |
-| 2026-03-19 | 診断ページにSuspense境界追加、ヘッダー即時表示+データストリーミング | ✅ |
-
-### 主要ファイル変更
-- `src/middleware.ts` → `proxy.ts` (Next.js 16規約、同期cookie確認のみ)
-- `src/lib/db/client.ts` (サーバーレス向け接続設定)
-- `src/lib/supabase/server.ts` (getSession化)
-- `src/lib/auth.ts` (React.cache ベースの `getAuthUser`)
-- `src/lib/logger.ts` (構造化JSONロガー 新規追加)
-- `vercel.json` (リージョン・maxDuration設定)
 
 ---
 

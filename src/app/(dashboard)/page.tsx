@@ -8,7 +8,6 @@ import {
 } from '@/app/(dashboard)/_actions/dashboard';
 import { MetricsGrid } from './_components/metrics-grid';
 import { Skeleton } from '@/components/shared/loading-skeleton';
-import { GettingStartedGuide } from './_components/getting-started-guide';
 
 // Dynamic imports for heavy chart components (Recharts + Framer Motion)
 const IncomeExpenseSection = dynamic(
@@ -69,9 +68,6 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <h1 className="font-display text-3xl text-foreground">ダッシュボード</h1>
-
-      {/* はじめてのガイド */}
-      <GettingStartedGuide />
 
       {/* メトリクスカード4枚 */}
       <MetricsGrid metrics={metrics} />
